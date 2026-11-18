@@ -1,0 +1,113 @@
+name: Security Audit
+
+# RustSec advisories every day on main, for new ones against unchanged dependencies, and on pull
+# requests that change the dependencies or deny.toml, with cargo-deny's licence, ban and source
+# checks; CodeQL on pull requests that change the Rust code, and by hand.
+on:
+  schedule:
+    # Every day, 00:00 UTC: the advisories only
+    - cron: '0 0 * * *'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'examples/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'deny.toml'
+      - '.github/workflows/security.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# On a pull request a newer push makes an older run redundant; every other run (scheduled, by
+# hand) is a group of its own and runs to the end
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Which jobs this run needs: the workflow's paths start it for code and for dependencies, and
+  # each job below reads only one of the two
+  changes:
+    name: Changed files
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      dependencies: ${{ steps.changes.outputs.dependencies }}
+      code: ${{ steps.changes.outputs.code }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      with:
+        fetch-depth: 0
+        filter: blob:none
+
+    - name: Files this workflow checks
+      id: changes
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      run: |
+        files=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+        echo "$files"
+        has() { if echo "$files" | grep -qE "$1"; then echo true; else echo false; fi; }
+        echo "dependencies=$(has '^(Cargo\.toml|Cargo\.lock|deny\.toml|\.github/workflows/security\.yml)$')" >> "$GITHUB_OUTPUT"
+        echo "code=$(has '^(src|tests|examples)/|^\.github/workflows/security\.yml$')" >> "$GITHUB_OUTPUT"
+
+  # RustSec advisories for every crate that can be built into rustls-pure (cargo-deny walks the
+  # resolved dependency graph). No advisories are ignored.
+  advisories:
+    name: Advisories
+    needs: changes
+    if: always() && (github.event_name != 'pull_request' || needs.changes.outputs.dependencies == 'true')
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+    - name: Check advisories
+      uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+      with:
+        command: check advisories
+
+  cargo_deny:
+    name: cargo-deny (licenses, bans, sources)
+    needs: changes
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.dependencies == 'true')
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+    - name: Run cargo-deny
+      uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+      with:
+        command: check licenses bans sources
+
+  codeql:
+    name: CodeQL Analysis
+    needs: changes
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.code == 'true')
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+      with:
+        languages: 'rust'
+        build-mode: none
+        queries: security-extended
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+      with:
+        category: "/language:rust"

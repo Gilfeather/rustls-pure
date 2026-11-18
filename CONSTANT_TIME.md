@@ -145,7 +145,7 @@ How the harness avoids differences that are not the secret's, each found on a re
   was accepted is not secret, since a refused one ends the connection.
 
 The test is `#[ignore]`d, since timing on shared machines is too noisy for every pull request
-and only a release build counts. `.github/workflows/rustls-pure-ct.yml` runs it weekly and on
+and only a release build counts. `.github/workflows/constant-time.yml` runs it weekly and on
 demand, on x86_64 Linux, aarch64 Linux (Neoverse N2) and macOS (Apple silicon), pinned to one
 core on Linux, and puts every |t| in the run's summary:
 

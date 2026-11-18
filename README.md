@@ -113,8 +113,8 @@ has them.
   newest one.
 - **Rust** 1.89 or later (the MSRV), tested weekly too.
 
-rustls-pure has a version of its own, apart from Furnace's, and a release only when it changes
-([CHANGELOG](CHANGELOG.md)). Before 1.0, raising either minimum, or moving to rustls 0.24, is
+rustls-pure is released only when it changes ([CHANGELOG](CHANGELOG.md),
+[RELEASING.md](RELEASING.md)). Before 1.0, raising either minimum, or moving to rustls 0.24, is
 a minor version.
 
 ## Targets
@@ -183,7 +183,7 @@ hybrid secret is ML-KEM's then X25519's, record lengths never underflow, and Ed2
 signatures have their sizes. The cryptography itself is the RustCrypto crates' and the protocol
 rustls's. It runs on pull requests that change rustls-pure.
 
-`bash rustls-pure/interop/run.sh` checks it against other TLS implementations on the same
+`bash interop/run.sh` checks it against other TLS implementations on the same
 machine, with certificates it makes for the run: OpenSSL, and GnuTLS and curl when installed,
 each as a client of rustls-pure's server and as a server for its client, with every cipher
 suite, key exchange group (X25519MLKEM768 with OpenSSL 3.5 or later) and key type, with client
@@ -194,7 +194,7 @@ Timing tests in the style of dudect (`src/tests/constant_time.rs`) time every op
 handles a secret on two classes of secret input and look for a difference: key exchanges,
 ML-KEM decapsulation of valid against tampered ciphertexts, signing, and records refused for a
 wrong tag. A control comes first, and a machine whose control fails gives no result. They run
-weekly on x86_64 Linux, aarch64 Linux and Apple silicon; `bash rustls-pure/ct-asm.sh` checks
+weekly on x86_64 Linux, aarch64 Linux and Apple silicon; `bash ct-asm.sh` checks
 on every pull request that rustls-pure's own code that touches secrets compiles to straight-line
 code. What these show and what they do not, a review of rustls-pure's own code and a survey of
 what the primitives do about constant time are in [CONSTANT_TIME.md](CONSTANT_TIME.md).
@@ -205,5 +205,6 @@ The vectors, the certificates and the scripts are left out of the published crat
 
 Report vulnerabilities privately, as [SECURITY.md](SECURITY.md) describes.
 
-MIT licensed. Forged in kamiforge: built as part of [Furnace](https://github.com/Gilfeather/furnace),
-the pure-Rust inference server, which serves HTTPS and gRPC with it.
+MIT licensed. Forged in kamiforge: developed inside [Furnace](https://github.com/Gilfeather/furnace),
+the pure-Rust inference server, until 0.15.4, and in this repository since. furnace-server
+serves HTTPS and gRPC with it.

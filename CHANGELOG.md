@@ -1,12 +1,20 @@
 # Changelog
 
-rustls-pure has a version of its own, apart from Furnace's, and is released only when it
-changes. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
+rustls-pure is released only when it changes. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html): before 1.0,
 a breaking change, a new minimum Rust version or a new rustls minor version is a new minor
 version.
 
 ## [Unreleased]
+
+### Changed
+
+- Moved to its own repository, [Gilfeather/rustls-pure](https://github.com/Gilfeather/rustls-pure),
+  with its history; it was developed inside [Furnace](https://github.com/Gilfeather/furnace)
+  until 0.15.4. Releases are tagged `v<version>` from now on (`rustls-pure-v<version>` before).
+- `ct-asm.sh` finds the assembly where Cargo 1.100 writes it
+  (`release/build/rustls-pure/<hash>/out/`, `release/deps/` before), which stopped the weekly
+  machine-code check on every platform. No change to the crate.
 
 ## [0.15.4] - 2026-10-27
 

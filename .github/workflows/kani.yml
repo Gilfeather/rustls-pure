@@ -1,0 +1,46 @@
+name: Kani
+
+# Kani's bounded model checking of rustls-pure's checks of the peer's key shares, records and
+# signatures before they reach the RustCrypto crates. The proofs are the
+# `#[cfg(kani)] mod verification` in src/lib.rs; each is bounded with `#[kani::unwind]` so it
+# stays within minutes. Kani runs on Linux only. Locally: `cargo install --locked kani-verifier
+# --version 0.68.0 && cargo kani setup`, then `cargo kani` (with `--harness <name> --exact` for
+# one proof).
+#
+# On pull requests that change the code or what it is built from. No schedule: what reaches
+# main was proved on its pull request.
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/kani.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+# On a pull request a newer push makes an older run redundant; a run by hand is a group of its
+# own and runs to the end
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  kani:
+    name: Kani
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+    - name: Prove
+      uses: model-checking/kani-github-action@f838096619a707b0f6b2118cf435eaccfa33e51f # v1.1
+      with:
+        kani-version: '0.68.0'

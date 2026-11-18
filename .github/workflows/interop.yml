@@ -1,0 +1,194 @@
+name: Interoperability
+
+# rustls-pure against other TLS implementations (OpenSSL, GnuTLS, curl), weekly and on pull
+# requests that change it, with a check of its own machine code that handles secrets and builds
+# for targets the providers on C do not reach; and, weekly only, against the newest rustls its
+# version range allows and on its minimum supported Rust version, which depend on what others
+# release. The unit, handshake and property tests are in ci.yml.
+on:
+  schedule:
+    # Mondays, 04:37 UTC
+    - cron: '37 4 * * 1'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'examples/**'
+      - 'interop/**'
+      - 'ct-asm.sh'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/interop.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+# On a pull request a newer push makes an older run redundant; every other run (scheduled, by
+# hand) is a group of its own and runs to the end
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  latest-rustls:
+    name: Newest rustls (${{ matrix.os }})
+    if: github.event_name != 'pull_request'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master, 2026-10-16
+      with:
+        toolchain: stable
+
+    # The newest rustls within rustls-pure's range (Cargo.toml), with whatever it needs
+    - name: Update rustls
+      run: |
+        cargo update --recursive rustls
+        cargo tree -i rustls --depth 0
+
+    - name: Test
+      run: cargo test
+
+  msrv:
+    name: Minimum supported Rust version
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+    - name: Read the MSRV
+      id: msrv
+      run: echo "version=$(sed -n 's/^rust-version = "\(.*\)"/\1/p' Cargo.toml)" >> "$GITHUB_OUTPUT"
+
+    - name: Install Rust ${{ steps.msrv.outputs.version }}
+      uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master, 2026-10-16
+      with:
+        toolchain: ${{ steps.msrv.outputs.version }}
+
+    # The lockfile's versions; a dependency update that needs a newer Rust shows up here
+    - name: Test
+      run: cargo test --locked
+
+  # rustls-pure's own code that handles secrets, as compiled: no branch, call or indexed load
+  # (ct-asm.sh). constant-time.yml runs this check weekly too, so the weekly run here leaves it
+  # out.
+  machine-code:
+    name: Constant-time machine code (${{ matrix.os }})
+    if: github.event_name != 'schedule'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master, 2026-10-16
+      with:
+        toolchain: stable
+
+    - name: Check
+      shell: bash
+      run: bash ct-asm.sh
+
+  # No C or assembly, so it builds for targets the providers on C do not reach: RISC-V, WASI,
+  # and the browser, where an application chooses getrandom's and rustls-pki-types' web backends
+  # (README, "Targets")
+  targets:
+    name: Builds for other targets
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master, 2026-10-16
+      with:
+        toolchain: stable
+        targets: riscv64gc-unknown-linux-gnu,wasm32-wasip2,wasm32-unknown-unknown
+
+    - name: RISC-V and WASI
+      run: |
+        cargo check --target riscv64gc-unknown-linux-gnu
+        cargo check --target wasm32-wasip2
+
+    # As an application in the browser would depend on it
+    - name: Browser (wasm32-unknown-unknown)
+      run: |
+        mkdir -p "$RUNNER_TEMP/browser/src"
+        cat > "$RUNNER_TEMP/browser/Cargo.toml" <<EOF
+        [package]
+        name = "browser"
+        version = "0.0.0"
+        edition = "2024"
+        publish = false
+
+        [workspace]
+
+        [dependencies]
+        rustls = { version = "0.23.46", default-features = false, features = ["std"] }
+        rustls-pure = { path = "$GITHUB_WORKSPACE" }
+        getrandom = { version = "0.4", features = ["wasm_js"] }
+        rustls-pki-types = { version = "1", features = ["web"] }
+        EOF
+        echo 'pub fn provider() -> rustls::crypto::CryptoProvider { rustls_pure::provider() }' \
+          > "$RUNNER_TEMP/browser/src/lib.rs"
+        cargo check --manifest-path "$RUNNER_TEMP/browser/Cargo.toml" --target wasm32-unknown-unknown
+
+  # REQUIRE_MLKEM: the OpenSSL here must have X25519MLKEM768 (3.5 or later), so the post-quantum
+  # checks cannot be skipped quietly
+  interop-linux:
+    name: Interoperability (Linux)
+    runs-on: ubuntu-latest
+    # Debian 13 has OpenSSL 3.5; the Ubuntu runner's is 3.0, without ML-KEM
+    container: rust:1-trixie
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+    - name: Install OpenSSL, GnuTLS and curl
+      run: apt-get update && apt-get install -y --no-install-recommends openssl gnutls-bin curl
+
+    - name: Interoperability tests
+      env:
+        REQUIRE_MLKEM: '1'
+      run: bash interop/run.sh
+
+  interop-macos:
+    name: Interoperability (macOS)
+    runs-on: macos-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master, 2026-10-16
+      with:
+        toolchain: stable
+
+    # macOS's own openssl and curl are on LibreSSL, and that curl cannot be asked for TLS 1.3;
+    # the test takes OpenSSL 3, GnuTLS and curl (on OpenSSL) from Homebrew
+    - name: Install OpenSSL 3, GnuTLS and curl
+      run: |
+        brew install openssl@3 gnutls curl
+        echo "OPENSSL=$(brew --prefix openssl@3)/bin/openssl" >> "$GITHUB_ENV"
+        echo "$(brew --prefix curl)/bin" >> "$GITHUB_PATH"
+
+    - name: Interoperability tests
+      env:
+        REQUIRE_MLKEM: '1'
+      run: bash interop/run.sh

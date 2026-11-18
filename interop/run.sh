@@ -5,7 +5,7 @@
 # exchange group and key type the provider offers, and with client certificates. Servers with
 # an RSA certificate or an unknown CA must be refused.
 #
-# Usage, from the repository root: bash rustls-pure/interop/run.sh
+# Usage, from the repository root: bash interop/run.sh
 # OPENSSL picks the openssl binary (it needs TLS 1.3 and Ed25519: OpenSSL 1.1.1 or later). The
 # post-quantum X25519MLKEM768 is checked with OpenSSL 3.5 or later, and skipped with an older
 # one unless REQUIRE_MLKEM=1, as CI sets it.

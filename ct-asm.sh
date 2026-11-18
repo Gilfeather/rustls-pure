@@ -6,7 +6,7 @@
 # computed from a register other than the base, which a table lookup by a secret would need.
 # Every other secret-dependent operation is in the RustCrypto crates (CONSTANT_TIME.md).
 #
-# bash rustls-pure/ct-asm.sh, from the repository root, on x86_64 or aarch64 (Linux or macOS)
+# bash ct-asm.sh, from the repository root, on x86_64 or aarch64 (Linux or macOS)
 set -euo pipefail
 
 target_dir="${CARGO_TARGET_DIR:-target}/ct-asm"

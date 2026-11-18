@@ -1,6 +1,6 @@
 #!/bin/sh
 # Test-only certificates and keys for the handshake tests (tests/handshake.rs). Never use them
-# for anything else. Regenerate with: sh rustls-pure/testdata/generate.sh (needs OpenSSL 3)
+# for anything else. Regenerate with: sh testdata/generate.sh (needs OpenSSL 3)
 set -eu
 cd "$(dirname "$0")"
 # Git Bash on Windows would rewrite /CN=... into a path

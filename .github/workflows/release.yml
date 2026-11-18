@@ -1,0 +1,71 @@
+name: Release
+
+# A `v<version>` tag, on a main commit whose Cargo.toml has that version, publishes it to
+# crates.io (RELEASING.md). A version already on crates.io is not published again, so a tag
+# pushed after a release by hand passes instead of failing on the duplicate.
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    # crates.io Trusted Publishing: the OIDC token is exchanged for a short-lived crates.io token
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master, 2026-10-16
+      with:
+        toolchain: stable
+
+    - name: Check that the tag names the crate's version
+      id: version
+      run: |
+        version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+        if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+          echo "::error::the tag is $GITHUB_REF_NAME, but Cargo.toml has $version"
+          exit 1
+        fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
+    - name: Test
+      run: cargo test --locked
+
+    # crates.io asks API clients for a User-Agent that says who they are
+    - name: Is this version on crates.io already?
+      id: published
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        status=$(curl -s -o /dev/null -w '%{http_code}' \
+          -A "rustls-pure release workflow (https://github.com/Gilfeather/rustls-pure)" \
+          "https://crates.io/api/v1/crates/rustls-pure/$VERSION")
+        case "$status" in
+          200) echo "rustls-pure $VERSION is on crates.io already; not publishing it again"
+               echo "skip=true" >> "$GITHUB_OUTPUT" ;;
+          404) echo "skip=false" >> "$GITHUB_OUTPUT" ;;
+          *) echo "::error::crates.io answered $status for rustls-pure $VERSION"; exit 1 ;;
+        esac
+
+    - name: Authenticate with crates.io
+      if: steps.published.outputs.skip == 'false'
+      id: auth
+      uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
+
+    - name: Publish rustls-pure
+      if: steps.published.outputs.skip == 'false'
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+      run: cargo publish --locked

@@ -3,8 +3,8 @@
 ## Reporting a vulnerability
 
 Report it privately through GitHub's
-[security advisories](https://github.com/Gilfeather/furnace/security/advisories/new) for the
-Furnace repository, where rustls-pure lives, with "rustls-pure" in the title. Please do not open
+[security advisories](https://github.com/Gilfeather/rustls-pure/security/advisories/new) for
+this repository. Please do not open
 a public issue. Say which version is affected, how to reproduce it (a test vector or a packet
 capture helps most), and what an attacker gains.
 
@@ -32,9 +32,8 @@ vulnerability.
 1. You get an answer within a week, and we agree on the issue and its severity.
 2. The fix is written in the advisory's private fork, with a test that fails without it (a
    Wycheproof-style vector where possible).
-3. A patch release of rustls-pure goes to crates.io (see "Releasing rustls-pure" in
-   [DEVELOPMENT.md](../DEVELOPMENT.md)), and a Furnace release follows if Furnace's
-   dependency needs raising.
+3. A patch release of rustls-pure goes to crates.io ([RELEASING.md](RELEASING.md)), and
+   dependents such as Furnace raise their requirement if they need to.
 4. The GitHub advisory is published, with a CVE requested through GitHub, crediting you unless
    you prefer otherwise; then it is filed with RustSec (below), so `cargo audit` and
    `cargo deny` flag the affected versions.
@@ -44,8 +43,7 @@ We aim to release a fix within 30 days of the report, sooner for anything exploi
 ## Supported versions
 
 Fixes go into the latest release of rustls-pure: before 1.0, the latest minor version
-(0.14.x now). There are no backports to older minor versions. rustls-pure has its own version,
-apart from Furnace's.
+(0.15.x now). There are no backports to older minor versions.
 
 ## Filing a RustSec advisory
 
@@ -61,7 +59,7 @@ on crates.io:
    id = "RUSTSEC-0000-0000"
    package = "rustls-pure"
    date = "2026-01-31"          # the day the fix was released
-   url = "https://github.com/Gilfeather/furnace/security/advisories/GHSA-xxxx-xxxx-xxxx"
+   url = "https://github.com/Gilfeather/rustls-pure/security/advisories/GHSA-xxxx-xxxx-xxxx"
    categories = ["crypto-failure"]
    keywords = ["tls"]
    aliases = ["CVE-2026-xxxxx", "GHSA-xxxx-xxxx-xxxx"]

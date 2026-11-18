@@ -1,0 +1,29 @@
+name: Bug report
+description: Something rustls-pure does wrong. Report vulnerabilities privately instead (SECURITY.md).
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A vulnerability (a signature, key share or record wrongly accepted, a key left in memory,
+        a timing difference on secret data, a panic a peer can trigger) goes to the repository's
+        private security advisories, not here: see SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Versions
+      description: rustls-pure, rustls and Rust (`cargo tree -i rustls-pure`, `rustc --version`)
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+      description: The peer (OpenSSL, a browser, a server) and its settings help most.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce it
+      description: Code, a command line or a packet capture.

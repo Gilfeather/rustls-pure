@@ -15,7 +15,7 @@
 //! The test is `#[ignore]`d, because timing on a shared machine is too noisy for every pull
 //! request and only a release build means anything:
 //! `cargo test --release -p rustls-pure --lib constant_time -- --ignored --nocapture`,
-//! run weekly by .github/workflows/rustls-pure-ct.yml.
+//! run weekly by .github/workflows/constant-time.yml.
 
 use std::hint::black_box;
 use std::time::{Duration, Instant};
@@ -261,7 +261,7 @@ fn measure<I, O>(
 }
 
 #[test]
-#[ignore = "timing: release build, .github/workflows/rustls-pure-ct.yml"]
+#[ignore = "timing: release build, .github/workflows/constant-time.yml"]
 fn constant_time() {
     let resolution = clock_resolution();
     println!("ct: clock resolution {resolution:?}");
