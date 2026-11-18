@@ -711,7 +711,7 @@ dependencies = [
 
 [[package]]
 name = "rustls-pure"
-version = "0.15.4"
+version = "0.15.5"
 dependencies = [
  "aes-gcm",
  "chacha20poly1305",

@@ -7,6 +7,11 @@ version.
 
 ## [Unreleased]
 
+## [0.15.5] - 2026-11-18
+
+The first release from its own repository, so crates.io links here. The library's code is
+unchanged.
+
 ### Changed
 
 - Moved to its own repository, [Gilfeather/rustls-pure](https://github.com/Gilfeather/rustls-pure),
